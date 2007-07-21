@@ -1,0 +1,14 @@
+--- #YAML:1.0
+name:                Graph-MaxFlow
+version:             0.01
+abstract:            compute maximum flow between 2 vertices in a graph
+license:             ~
+generated_by:        ExtUtils::MakeMaker version 6.36
+distribution_type:   module
+requires:     
+    Graph:                         0
+meta-spec:
+    url:     http://module-build.sourceforge.net/META-spec-v1.2.html
+    version: 1.2
+author:
+    - Walt Mankowski <waltman@cpan.org>
