@@ -1,14 +1,15 @@
-# $Id: MaxFlow.pm 17 2007-07-21 00:13:49Z walt $
+# $Id: MaxFlow.pm 23 2007-07-23 21:22:21Z walt $
 
 package Graph::MaxFlow;
 
 require Exporter;
 use Graph;
+use Carp 'carp';
 
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(max_flow);
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 use strict;
 use warnings;
@@ -17,44 +18,71 @@ use warnings;
 # $source and $sink
 sub max_flow {
     my ($g, $source, $sink) = @_;
-    my $result = $g->deep_copy_graph;
+
+    if ($g->is_undirected) {
+        carp "Graph must be directed";
+        return;
+    }
+
+    if ($g->vertices < 2) {
+        carp "Graph must have at least 2 vertices";
+        return;
+    }
+
+    my $resid = init_flow($g);
 
     while (1) {
         # find the shortest augmenting path between $source and $sink
-        my $path = shortest_path($result, $source, $sink);
+        my $path = shortest_path($g, $resid, $source, $sink);
         last unless @$path;
 
         # find min weight in path
         my $min;
         for my $i (0..$#$path - 1) {
-            my $weight = $result->get_edge_weight($path->[$i], $path->[$i+1]);
+            my $weight = residual_capacity($g, $resid, $path->[$i], $path->[$i+1]);
             $min = $weight if !defined $min || $weight < $min;
         }
 
-        # subtract that from every edge in the path
+        # update the flow network
         for my $i (0..$#$path - 1) {
-            my $weight = $result->get_edge_weight($path->[$i], $path->[$i+1]);
-            $result->set_edge_weight($path->[$i], $path->[$i+1], $weight-$min);
+            add_edge_weight($resid, $path->[$i], $path->[$i+1], $min);
+            add_edge_weight($resid, $path->[$i+1], $path->[$i], -$min);
         }
 
     }
 
-    # convert weights from residual to actual flow
-    for my $e ($result->edges) {
-        my $new = $result->get_edge_weight(@$e);
-        my $old = $g->get_edge_weight(@$e);
-        $result->set_edge_weight(@$e, $old - $new);
+    # convert the residual flow graph into a copy of the original
+    # graph, but with the edge weights set to the flow
+    my $flow = $g->copy_graph;
+    for my $e ($flow->edges) {
+        my ($u, $v) = @$e;
+        my $weight = $resid->get_edge_weight($u, $v);
+        $flow->set_edge_weight($u, $v, $weight > 0 ? $weight : 0);
     }
 
-    return $result;
+    return $flow;
 }
 
-# do a breadth-first search over edges with positive weight
+# init the flow so that f(u,v) = 0 for all edges
+sub init_flow {
+    my $g = shift;
+    my $flow = new Graph;
+
+    for my $e ($g->edges) {
+            $flow->add_weighted_edge($e->[0], $e->[1], 0);
+            $flow->add_weighted_edge($e->[1], $e->[0], 0);
+    }
+
+    return $flow;
+}
+
+# do a breadth-first search over edges with positive residual capacity
 sub shortest_path {
-    my ($g, $from, $to) = @_;
+    my ($g, $flow, $from, $to) = @_;
 
     my %parent;
     my @next;
+
     $parent{$from} = undef;
     $next[0] = $from;
     my $found = 0;
@@ -67,9 +95,9 @@ sub shortest_path {
             last;
         }
 
-        for my $v ($g->successors($u)) {
+        for my $v ($g->neighbors($u)) {
             next if exists $parent{$v};
-            next unless $g->get_edge_weight($u, $v) > 0;
+            next unless residual_capacity($g, $flow, $u, $v) > 0;
             $parent{$v} = $u;
             push @next, $v;
         }
@@ -88,6 +116,26 @@ sub shortest_path {
 
     return \@path;
 }
+
+# add $delta to the weight of the edge ($u, $v)
+sub add_edge_weight {
+    my ($g, $u, $v, $delta) = @_;
+
+    my $weight = $g->get_edge_weight($u, $v);
+    $g->set_edge_weight($u, $v, $weight + $delta);
+}
+
+# returns the residual capacity between $u and $v
+sub residual_capacity {
+    my ($g, $flow, $u, $v) = @_;
+
+    if ($g->has_edge($u, $v)) {
+        return $g->get_edge_weight($u, $v) - $flow->get_edge_weight($u, $v);
+    } else {
+        return -$flow->get_edge_weight($u, $v);
+    }
+}
+
 
 1;
 
