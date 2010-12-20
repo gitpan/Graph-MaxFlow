@@ -1,5 +1,3 @@
-# $Id: MaxFlow.pm 23 2007-07-23 21:22:21Z walt $
-
 package Graph::MaxFlow;
 
 require Exporter;
@@ -9,7 +7,7 @@ use Carp 'carp';
 @ISA = qw(Exporter);
 @EXPORT_OK = qw(max_flow);
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 use strict;
 use warnings;
@@ -184,7 +182,7 @@ Walt Mankowski, E<lt>waltman@cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2007 by Walt Mankowski
+Copyright 2010 by Walt Mankowski
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
